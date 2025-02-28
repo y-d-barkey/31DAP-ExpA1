@@ -1,5 +1,7 @@
+clear
+
 gas = 'helium';
-% gas = 'compressed air';
+gas = 'compressed air';
 
 if strcmp(gas, 'helium')
     folders = {'1.0', '2.0', '2.4'};
@@ -12,25 +14,21 @@ p_table = table;
 
 % Ambient pressure and temperature at time of testing
 p_amb = 120555;
-p_amb_SD = 1000;
 t_amb = 296.03;
+p_amb_SD = 1000
 t_amb_SD = 0.214;
 
-%p_amb + (v + 0.05063) / 4.49503E-6
-%p_amb = (v + 0.05063) / 
-
 % Conversion from V to Pa
-v_to_pa = @ (v) p_amb + (v + 0.13064) / 5.0005e-06
+v_to_pa = @ (v) p_amb + (v + 0.05063) / 4.49503E-6
 vsd_to_pasd = @ (v, vsd) sqrt( ...
-    (vsd/5.0005e-06)^2 ...
-    +(0.071932/5.0005e-06)^2 ...
-    +(v * 2.6981e-07/5.0005e-06)^2 ...
+    (vsd/4.49503E-6)^2 ...
+    +(0.03266/4.49503E-6)^2 ...
+    +(2.14197E-7*(v + 0.05063)/(4.49503E-6)^2)^2 ...
     );
 
-% FIND FORMULA FOR vsd PLEASE
-v_to_k = @ (v) (v - 3.0588)/0.02097 + 273.15;
-% FIND FORMULA FOR vsd PLEASE
-vsd_to_ksd = @ (v, vsd) vsd / 0.02097;
+% Conversion from V to K
+v_to_k = @ (v) 273.15 + (v-3.0588)/(0.0218881118881);
+vsd_to_ksd = @ (v, vsd) sqrt(0.00583261377445+(vsd/0.0218881118881)^2);
 
 % Parse through each folder (Initial pressure)
 for j = 1:3
@@ -107,7 +105,7 @@ for j = 1:3
             tB_SD = vsd_to_ksd(min(vts), min(vts) * vtA_SD / vtA);
     
             % Pressure at point C
-            pC = v_to_pa(vp_bc_fit_model.Coefficients.Estimate(1))
+            pC = v_to_pa(vp_bc_fit_model.Coefficients.Estimate(1));
             pC_SD = vsd_to_pasd( ...
                 vp_bc_fit_model.Coefficients.Estimate(1), ...
                 vp_bc_fit_model.Coefficients.SE(1) ...
@@ -216,19 +214,21 @@ g_wm = (sum(w1 .* y1) + sum(w2 .* y2) ) / (sum(w1) + sum(w2));
 % Calculate weighted std.dev from weighted variances
 var_ab = sum(w1 .* (y1 - g_wm).^2);
 var_bc = sum(w2 .* (y2 - g_wm).^2);
-g_wSD = sqrt((var_ab + var_bc) / (sum(w1) + sum(w2)));
+g_wSD = sqrt((6/5)*(var_ab + var_bc) / (sum(w1) + sum(w2)));
 
 % Calculate weighted std.dev individually
-g_ab_wSD = var_ab / sum(w1);
-g_bc_wSD = var_bc / sum(w2);
+g_ab_wSD = sqrt((3/2)*sum(w1 .* (y1 - g_ab_wm).^2)/sum(w1));
+g_bc_wSD = sqrt((3/2)*sum(w2 .* (y2 - g_bc_wm).^2)/sum(w2));
+
+all_gamma = [y1; y2];
+all_gamma_SD = [y1_err;y2_err];
 
 disp(['Adiabatic constant AB: ', num2str(g_ab_wm),char(177),num2str(g_ab_wSD)])
 disp(['Adiabatic constant BC: ', num2str(g_bc_wm),char(177),num2str(g_bc_wSD)])
 disp(['Adiabatic constant: ', num2str(g_wm),char(177),num2str(g_wSD)])
 disp(['Reduced Chi-Squared: ', num2str(sum(((all_gamma - g_wm)./all_gamma_SD).^2) / 5)])
 
-all_gamma = [y1; y2];
-all_gamma_SD = [y1_err; y2_err];
+
 
 
 hold on;
